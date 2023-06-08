@@ -2,26 +2,30 @@ use std::fmt::Display;
 
 use anyhow::Result;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Token {
-    Int(String),
+    One,
+    Zero,
     LPar,
     RPar,
-    Bool,
-    Asterisk,
-    Plus,
+    Mult(char, u8),
+    Add(char, u8),
+    True,
+    False,
     Eof,
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         return match self {
-            Token::Int(x) => write!(f, "Int({})", x),
-            Token::LPar => write!(f, "LPar"),
-            Token::RPar => write!(f, "RPar"),
-            Token::Bool => write!(f, "Bool"),
-            Token::Asterisk => write!(f, "Asterisk"),
-            Token::Plus => write!(f, "Plus"),
+            Token::One => write!(f, "1"),
+            Token::Zero => write!(f, "0"),
+            Token::LPar => write!(f, "("),
+            Token::RPar => write!(f, ")"),
+            Token::Mult(_, _) => write!(f, "*"),
+            Token::Add(_, _) => write!(f, "+"),
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
             Token::Eof => write!(f, "Eof"),
         };
     }
@@ -52,11 +56,20 @@ impl Lexer {
         let tok = match self.ch {
             b'(' => Token::LPar,
             b')' => Token::RPar,
-            b'*' => Token::Asterisk,
-            b'+' => Token::Plus,
-            b'0'..=b'9' => return Ok(Token::Int(self.read_int())),
+            b'*' => Token::Mult('*', 2),
+            b'+' => Token::Add('+', 1),
+            b'0' => Token::Zero,
+            b'1' => Token::One,
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+                let ident = self.read_ident();
+                return Ok(match ident.as_str() {
+                    "false" => Token::False,
+                    "true" => Token::True,
+                    _ => unreachable!("Unallowed character"),
+                });
+            }
             0 => Token::Eof,
-            _ => unreachable!("Unallow characters"),
+            _ => unreachable!("Unallowed character"),
         };
 
         self.read_char();
@@ -69,6 +82,15 @@ impl Lexer {
         }
     }
 
+    fn read_ident(&mut self) -> String {
+        let pos = self.position;
+        while self.ch.is_ascii_alphabetic() || self.ch == b'_' {
+            self.read_char();
+        }
+
+        return String::from_utf8_lossy(&self.input[pos..self.position]).to_string();
+    }
+
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = 0
@@ -78,15 +100,6 @@ impl Lexer {
 
         self.position = self.read_position;
         self.read_position += 1
-    }
-
-    fn read_int(&mut self) -> String {
-        let pos = self.position;
-        while self.ch.is_ascii_digit() {
-            self.read_char()
-        }
-
-        return String::from_utf8_lossy(&self.input[pos..self.position]).to_string();
     }
 }
 
@@ -98,19 +111,19 @@ mod test {
 
     #[test]
     fn get_next_token() -> Result<()> {
-        let input = "(10 * 0) + 5 * 4";
+        let input = "(0 * 1) + true * false";
         let mut lexer = Lexer::new(input.into());
 
         let tokens = vec![
+            Token::One,
+            Token::Zero,
+            Token::Mult('*', 2),
             Token::LPar,
-            Token::Int(String::from("10")),
-            Token::Asterisk,
-            Token::Int(String::from("0")),
             Token::RPar,
-            Token::Plus,
-            Token::Int(String::from("5")),
-            Token::Asterisk,
-            Token::Int(String::from("4")),
+            Token::Add('+', 1),
+            Token::True,
+            Token::False,
+            Token::Eof,
         ];
 
         for token in tokens {
