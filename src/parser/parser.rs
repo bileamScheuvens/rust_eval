@@ -39,27 +39,27 @@ impl ASTNode {
 }*/
 pub struct ShuntiyardParser {
     operator_stack: Vec<Token>,
-    ast: Vec<ASTNode>,
+    output_queue: Vec<ASTNode>,
 }
 impl ShuntiyardParser {
     pub fn new() -> ShuntiyardParser {
         let parser = ShuntiyardParser {
             operator_stack: Vec::new(),
-            ast: Vec::new(),
+            output_queue: Vec::new(),
         };
         return parser;
     }
 
     pub fn add_node(&mut self, operator: &Token) {
-        let l_node = self.ast.pop().unwrap();
-        let r_node = self.ast.pop().unwrap();
+        let l_node = self.output_queue.pop().unwrap();
+        let r_node = self.output_queue.pop().unwrap();
 
         let node = match operator {
-            Token::Add(_, _) => ASTNode::Add(Box::new(l_node), Box::new(r_node)),
-            Token::Mult(_, _) => ASTNode::Multiply(Box::new(l_node), Box::new(r_node)),
+            Token::Add(_) => ASTNode::Add(Box::new(l_node), Box::new(r_node)),
+            Token::Mult(_) => ASTNode::Multiply(Box::new(l_node), Box::new(r_node)),
             _ => unimplemented!("Operator not defined"),
         };
-        self.ast.push(node);
+        self.output_queue.push(node);
     }
 
     pub fn parse(&mut self, input: String) -> Result<ASTNode> {
@@ -67,13 +67,13 @@ impl ShuntiyardParser {
         while let Ok(token) = lexer.next_token() {
             match token {
                 Token::Zero | Token::One => self
-                    .ast
+                    .output_queue
                     .push(ASTNode::Number(token.to_string().parse().unwrap())),
-                Token::Add(_, o1) | Token::Mult(_, o1) => {
+                Token::Add(o1) | Token::Mult(o1) => {
                     while self.operator_stack.len() > 0 && self.operator_stack.last() != None {
-                        match self.operator_stack.last().cloned() {
-                            Some(Token::Add(_, o2)) | Some(Token::Mult(_, o2)) => {
-                                if o1 <= o2 {
+                        match self.operator_stack.last() {
+                            Some(Token::Add(o2)) | Some(Token::Mult(o2)) => {
+                                if o1 <= *o2 {
                                     let op = self.operator_stack.pop().unwrap();
                                     self.add_node(&op);
                                 } else {
@@ -103,7 +103,7 @@ impl ShuntiyardParser {
             }
             /*println!(
                 "Current Token {:?} & Current Stack {:?} & Current output queue {:?}",
-                token, self.operator_stack, self.ast
+                token, self.operator_stack, self.output_queue
             )*/
         }
         while self.operator_stack.len() > 0 {
@@ -113,9 +113,9 @@ impl ShuntiyardParser {
         }
         /*println!(
             "End Stack {:?} & End output queue {:?}",
-            self.operator_stack, self.ast
+            self.operator_stack, self.output_queue
         );*/
-        Ok(self.ast.pop().unwrap())
+        Ok(self.output_queue.pop().unwrap())
     }
 }
 
@@ -175,6 +175,7 @@ mod test {
             ("1 + 1 + 1", 3),
             ("0*0*0*0*0*0", 0),
             ("((1+1)*0+1*(1+0))", 1),
+            ("(()()()()(((1))))", 1),
         ];
         let mut parser = ShuntiyardParser::new();
 
@@ -182,15 +183,15 @@ mod test {
             //println!("Expression to parse {:?}", input);
             let parse_result = parser.parse(input.into());
             let _ast = match parse_result {
-                Ok(ast) => {
-                    //println!("Ast {:?}", ast);
+                Ok(output_queue) => {
+                    //println!("Ast {:?}", output_queue);
                     println!(
                         "Expression to parse {:?} Evaluation of Ast {:?} excpected value {:?}",
                         input,
-                        ast.evaluate(),
+                        output_queue.evaluate(),
                         result
                     );
-                    assert_eq!(ast.evaluate(), result);
+                    assert_eq!(output_queue.evaluate(), result);
                 }
                 Err(err) => panic!("Problem while parsing: {:?}", err),
             };

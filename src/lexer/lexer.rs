@@ -8,8 +8,8 @@ pub enum Token {
     Zero,
     LPar,
     RPar,
-    Mult(char, u8),
-    Add(char, u8),
+    Mult(u8), // stores precedence of Operation
+    Add(u8),
     True,
     False,
     Eof,
@@ -22,8 +22,8 @@ impl Display for Token {
             Token::Zero => write!(f, "0"),
             Token::LPar => write!(f, "("),
             Token::RPar => write!(f, ")"),
-            Token::Mult(_, _) => write!(f, "*"),
-            Token::Add(_, _) => write!(f, "+"),
+            Token::Mult(_) => write!(f, "*"),
+            Token::Add(_) => write!(f, "+"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
             Token::Eof => write!(f, "Eof"),
@@ -56,8 +56,8 @@ impl Lexer {
         let tok = match self.ch {
             b'(' => Token::LPar,
             b')' => Token::RPar,
-            b'*' => Token::Mult('*', 2),
-            b'+' => Token::Add('+', 1),
+            b'*' => Token::Mult(2),
+            b'+' => Token::Add(1),
             b'0' => Token::Zero,
             b'1' => Token::One,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
@@ -115,13 +115,14 @@ mod test {
         let mut lexer = Lexer::new(input.into());
 
         let tokens = vec![
-            Token::One,
-            Token::Zero,
-            Token::Mult('*', 2),
             Token::LPar,
+            Token::Zero,
+            Token::Mult(2),
+            Token::One,
             Token::RPar,
-            Token::Add('+', 1),
+            Token::Add(1),
             Token::True,
+            Token::Mult(2),
             Token::False,
             Token::Eof,
         ];
