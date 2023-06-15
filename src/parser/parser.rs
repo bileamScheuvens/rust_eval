@@ -3,7 +3,7 @@ use anyhow::Result;
 use crate::lexer::lexer::{Lexer, Token};
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ASTNode {
     Number(u8),
     Add(Box<ASTNode>, Box<ASTNode>),
@@ -50,13 +50,23 @@ impl ShuntiyardParser {
         return parser;
     }
 
+    pub fn check_for_zero(&self, l_node: ASTNode, r_node: ASTNode) -> ASTNode {
+        // check if left or right side of multiplication is 0 to simply evaluation
+        if (l_node == ASTNode::Number(0)) | (r_node == ASTNode::Number(0)) {
+            println!("One side of tree is zero");
+            return ASTNode::Number(0);
+        } else {
+            return ASTNode::Multiply(Box::new(l_node), Box::new(r_node));
+        }
+    }
+
     pub fn add_node(&mut self, operator: &Token) {
         let l_node = self.output_queue.pop().unwrap();
         let r_node = self.output_queue.pop().unwrap();
 
         let node = match operator {
             Token::Add(_) => ASTNode::Add(Box::new(l_node), Box::new(r_node)),
-            Token::Mult(_) => ASTNode::Multiply(Box::new(l_node), Box::new(r_node)),
+            Token::Mult(_) => self.check_for_zero(l_node, r_node),
             _ => unimplemented!("Operator not defined"),
         };
         self.output_queue.push(node);
@@ -101,20 +111,20 @@ impl ShuntiyardParser {
                 Token::Eof => break,
                 _ => (),
             }
-            /*println!(
+            println!(
                 "Current Token {:?} & Current Stack {:?} & Current output queue {:?}",
                 token, self.operator_stack, self.output_queue
-            )*/
+            )
         }
         while self.operator_stack.len() > 0 {
             // Pop them off and push them to the output_queue
             let op = &self.operator_stack.pop().unwrap();
             self.add_node(op);
         }
-        /*println!(
+        println!(
             "End Stack {:?} & End output queue {:?}",
             self.operator_stack, self.output_queue
-        );*/
+        );
         Ok(self.output_queue.pop().unwrap())
     }
 }
@@ -176,11 +186,35 @@ mod test {
             ("0*0*0*0*0*0", 0),
             ("((1+1)*0+1*(1+0))", 1),
             ("(()()()()(((1))))", 1),
+            ("(1*1)*0", 0),
         ];
         let mut parser = ShuntiyardParser::new();
 
         for (input, result) in inputs {
             //println!("Expression to parse {:?}", input);
+            let parse_result = parser.parse(input.into());
+            let _ast = match parse_result {
+                Ok(output_queue) => {
+                    //println!("Ast {:?}", output_queue);
+                    println!(
+                        "Expression to parse {:?} Evaluation of Ast {:?} excpected value {:?}",
+                        input,
+                        output_queue.evaluate(),
+                        result
+                    );
+                    assert_eq!(output_queue.evaluate(), result);
+                }
+                Err(err) => panic!("Problem while parsing: {:?}", err),
+            };
+        }
+    }
+    #[test]
+    fn parse_expression_single_test() {
+        let inputs = vec![("( 1 + 0  ) * 0", 0)];
+        let mut parser = ShuntiyardParser::new();
+
+        for (input, result) in inputs {
+            println!("Expression to parse {:?}", input);
             let parse_result = parser.parse(input.into());
             let _ast = match parse_result {
                 Ok(output_queue) => {
