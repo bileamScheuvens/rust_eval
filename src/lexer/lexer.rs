@@ -10,7 +10,7 @@ pub enum Token {
     RPar,
     Mult(u8), // stores precedence of Operation
     Add(u8),
-    Or,
+    Or(u8),
     True,
     False,
     Eof,
@@ -25,7 +25,7 @@ impl Display for Token {
             Token::RPar => write!(f, ")"),
             Token::Mult(_) => write!(f, "*"),
             Token::Add(_) => write!(f, "+"),
-            Token::Or => write!(f, "||"),
+            Token::Or(_) => write!(f, "||"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
             Token::Eof => write!(f, "Eof"),
@@ -67,7 +67,7 @@ impl Lexer {
                 return Ok(match ident.as_str() {
                     "false" => Token::False,
                     "true" => Token::True,
-                    "||" => Token::Or,
+                    "||" => Token::Or(0),
                     _ => unreachable!("Unallowed character"),
                 });
             }
@@ -127,7 +127,7 @@ mod test {
             Token::True,
             Token::Mult(2),
             Token::False,
-            Token::Or,
+            Token::Or(0),
             Token::True,
             Token::Eof,
         ];
