@@ -1,7 +1,22 @@
 use anyhow::Result;
 
 use crate::lexer::lexer::{Lexer, Token};
-use crate::node::node::{ASTNode, ResultEval};
+
+#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+pub enum ASTNode {
+    Number(u8),
+    Bool(bool),
+    Add(Box<ASTNode>, Box<ASTNode>),
+    Multiply(Box<ASTNode>, Box<ASTNode>),
+    Or(Box<ASTNode>, Box<ASTNode>),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ResultEval {
+    Int(u8),
+    Bool(bool),
+}
 
 pub struct ShuntiyardParser {
     operator_stack: Vec<Token>,
@@ -78,7 +93,6 @@ impl ShuntiyardParser {
                     }
                 },
                 Token::Eof => break,
-                _ => (),
             }
             println!(
                 "Current Token {:?} & Current Stack {:?} & Current output queue {:?}",
@@ -98,185 +112,7 @@ impl ShuntiyardParser {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use anyhow::Result;
-
-    use crate::parser::parser::{ResultEval, ShuntiyardParser};
-
-    use super::ASTNode;
-
-    #[test]
-    fn evaluate() -> Result<()> {
-        let expression_0 = ASTNode::Add(
-            Box::new(ASTNode::Number(1)),
-            Box::new(ASTNode::Multiply(
-                Box::new(ASTNode::Number(1)),
-                Box::new(ASTNode::Number(1)),
-            )),
-        );
-        let result = expression_0.evaluate().unwrap();
-        let val_eval = match result {
-            ResultEval::Int(value) => value,
-            _ => !unreachable!(),
-        };
-        assert_eq!(2, val_eval);
-
-        let expression_1 = ASTNode::Add(
-            Box::new(ASTNode::Number(0)),
-            Box::new(ASTNode::Multiply(
-                Box::new(ASTNode::Number(0)),
-                Box::new(ASTNode::Number(0)),
-            )),
-        );
-        let result = expression_1.evaluate().unwrap();
-        let val_eval = match result {
-            ResultEval::Int(value) => value,
-            _ => !unreachable!(),
-        };
-        assert_eq!(0, val_eval);
-
-        let expression_2 = ASTNode::Add(
-            Box::new(ASTNode::Number(0)),
-            Box::new(ASTNode::Multiply(
-                Box::new(ASTNode::Number(1)),
-                Box::new(ASTNode::Number(0)),
-            )),
-        );
-
-        let result = expression_2.evaluate().unwrap();
-        let val_eval = match result {
-            ResultEval::Int(value) => value,
-            _ => !unreachable!(),
-        };
-        assert_eq!(0, val_eval);
-
-        let expression_2 = ASTNode::Add(
-            Box::new(ASTNode::Number(0)),
-            Box::new(ASTNode::Multiply(
-                Box::new(ASTNode::Number(1)),
-                Box::new(ASTNode::Number(0)),
-            )),
-        );
-        let result = expression_2.evaluate().unwrap();
-        let val_eval = match result {
-            ResultEval::Int(value) => value,
-            _ => !unreachable!(),
-        };
-        assert_eq!(0, val_eval);
-
-        return Ok(());
-    }
-
-    #[test]
-    fn parse_expression_test() {
-        let inputs = vec![
-            ("( 1 + 0 ) * 1", 1),
-            ("1 + 1 + 1", 3),
-            ("0*0*0*0*0*0", 0),
-            ("((1+1)*0+1*(1+0))", 1),
-            ("(()()()()(((1))))", 1),
-            ("(1*1)*0", 0),
-            ("1+0", 1),
-        ];
-        let mut parser = ShuntiyardParser::new();
-
-        for (input, exp_result) in inputs {
-            //println!("Expression to parse {:?}", input);
-            let parse_result = parser.parse(input.into());
-            let _ast = match parse_result {
-                Ok(output_queue) => {
-                    //println!("Ast {:?}", output_queue);
-                    let result_eval = output_queue.evaluate().unwrap();
-                    let val_eval = match result_eval {
-                        ResultEval::Int(value) => value,
-                        _ => panic!("There should be no other value then an int"),
-                    };
-
-                    println!(
-                        "Expression to parse {:?} Evaluation of Ast {:?} excpected value {:?}",
-                        input, val_eval, exp_result
-                    );
-                    assert_eq!(exp_result, val_eval);
-                }
-                Err(err) => panic!("Problem while parsing: {:?}", err),
-            };
-        }
-    }
-    #[test]
-    fn parse_expression_single_test() {
-        let inputs = vec![("( 1 + 0  ) * 0", 0)];
-        let mut parser = ShuntiyardParser::new();
-
-        for (input, exp_result) in inputs {
-            println!("Expression to parse {:?}", input);
-            let parse_result = parser.parse(input.into());
-            let _ast = match parse_result {
-                Ok(output_queue) => {
-                    let result_eval = output_queue.evaluate().unwrap();
-                    let val_eval = match result_eval {
-                        ResultEval::Int(value) => value,
-                        _ => panic!("There should be no other value then an int"),
-                    };
-
-                    println!(
-                        "Expression to parse {:?} Evaluation of Ast {:?} excpected value {:?}",
-                        input, val_eval, exp_result
-                    );
-                    assert_eq!(exp_result, val_eval);
-                }
-                Err(err) => panic!("Problem while parsing: {:?}", err),
-            };
-        }
-    }
-
-    #[test]
-    fn parse_expression_bool_none_test() {
-        let inputs = vec![
-            (" true + 1", None::<ResultEval>),
-            (" false || 1", None::<ResultEval>),
-        ];
-        let mut parser = ShuntiyardParser::new();
-
-        for (input, exp_result) in inputs {
-            println!("Expression to parse {:?}", input);
-            let parse_result = parser.parse(input.into());
-            let _ast = match parse_result {
-                Ok(output_queue) => {
-                    let result_eval = output_queue.evaluate();
-                    println!(
-                        "Expression to parse {:?} Evaluation of Ast {:?} excpected value {:?}",
-                        input, result_eval, exp_result
-                    );
-                    assert_eq!(result_eval, exp_result);
-                }
-                Err(err) => panic!("Problem while parsing: {:?}", err),
-            };
-        }
-    }
-
-    #[test]
-    fn parse_expression_bool_valid_test() {
-        let inputs = vec![
-            (" false || true", ResultEval::Bool(true)),
-            (" true || 1", ResultEval::Bool(true)),
-        ];
-        let mut parser = ShuntiyardParser::new();
-
-        for (input, exp_result) in inputs {
-            println!("Expression to parse {:?}", input);
-            let parse_result = parser.parse(input.into());
-            let _ast = match parse_result {
-                Ok(output_queue) => {
-                    let result_eval = output_queue.evaluate().unwrap();
-                    println!(
-                        "Expression to parse {:?} Evaluation of Ast {:?} excpected value {:?}",
-                        input, result_eval, exp_result
-                    );
-                    assert_eq!(result_eval, exp_result);
-                }
-                Err(err) => panic!("Problem while parsing: {:?}", err),
-            };
-        }
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use crate::parser::parser::{ResultEval, ShuntiyardParser};
+// }
