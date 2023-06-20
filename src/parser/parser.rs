@@ -13,6 +13,17 @@ pub enum ASTNode {
     Multiply(Box<ASTNode>, Box<ASTNode>),
     Or(Box<ASTNode>, Box<ASTNode>),
 }
+impl Clone for ASTNode {
+    fn clone(&self) -> ASTNode {
+        match self {
+            ASTNode::Number(num) => ASTNode::Number(*num),
+            ASTNode::Bool(b) => ASTNode::Bool(*b),
+            ASTNode::Add(left, right) => ASTNode::Add(left.clone(), right.clone()),
+            ASTNode::Multiply(left, right) => ASTNode::Multiply(left.clone(), right.clone()),
+            ASTNode::Or(left, right) => ASTNode::Or(left.clone(), right.clone()),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ResultEval {
