@@ -10,6 +10,7 @@ pub enum Token {
     RPar,
     Mult(u8), // stores precedence of Operation
     Add(u8),
+    Or(u8),
     True,
     False,
     Eof,
@@ -24,6 +25,7 @@ impl Display for Token {
             Token::RPar => write!(f, ")"),
             Token::Mult(_) => write!(f, "*"),
             Token::Add(_) => write!(f, "+"),
+            Token::Or(_) => write!(f, "||"),
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
             Token::Eof => write!(f, "Eof"),
@@ -60,11 +62,12 @@ impl Lexer {
             b'+' => Token::Add(1),
             b'0' => Token::Zero,
             b'1' => Token::One,
-            b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+            b'a'..=b'z' | b'A'..=b'Z' | b'|' | b'_' => {
                 let ident = self.read_ident();
                 return Ok(match ident.as_str() {
                     "false" => Token::False,
                     "true" => Token::True,
+                    "||" => Token::Or(0),
                     _ => unreachable!("Unallowed character"),
                 });
             }
@@ -84,7 +87,7 @@ impl Lexer {
 
     fn read_ident(&mut self) -> String {
         let pos = self.position;
-        while self.ch.is_ascii_alphabetic() || self.ch == b'_' {
+        while self.ch.is_ascii_alphabetic() || self.ch == b'_' || self.ch == b'|' {
             self.read_char();
         }
 
@@ -111,7 +114,7 @@ mod test {
 
     #[test]
     fn get_next_token() -> Result<()> {
-        let input = "(0 * 1) + true * false";
+        let input = "(0 * 1) + true * false || true";
         let mut lexer = Lexer::new(input.into());
 
         let tokens = vec![
@@ -124,6 +127,8 @@ mod test {
             Token::True,
             Token::Mult(2),
             Token::False,
+            Token::Or(0),
+            Token::True,
             Token::Eof,
         ];
 
