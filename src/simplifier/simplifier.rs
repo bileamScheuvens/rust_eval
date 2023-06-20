@@ -1,5 +1,6 @@
 use crate::parser::parser::{ASTNode, ResultEval};
 pub struct SimpRule {
+    pub name: String,
     pub can_apply: fn(&ASTNode) -> bool,
     pub apply: fn(&ASTNode) -> ASTNode,
 }
@@ -104,26 +105,33 @@ impl Simplifier {
     }
 
 
-    pub fn simplify(&self, node: ASTNode) {
+    pub fn simplify(&self, node: ASTNode){
         let mut queue = vec![node];
         while !queue.is_empty() {
-            let mut new_queue = vec![];
-            for node in queue {
-                for rule in &self.rules {
-                    if (rule.can_apply)(&node) {
-                        (rule.apply)(&node);
-                        let newnode = (rule.apply)(&node);
-                        match newnode {
-                            ASTNode::Add(left, right) | ASTNode::Multiply(left, right) | ASTNode::Or(left, right)=> {
-                                new_queue.push(*left);
-                                new_queue.push(*right);
-                            }
-                            _ => {}
+            let currentnode = queue.pop().unwrap();
+            let mut modified = false;
+            for rule in &self.rules {
+                if (rule.can_apply)(&currentnode) {
+                    let newnode = (rule.apply)(&currentnode);
+                    match newnode {
+                        ASTNode::Add(left, right) | ASTNode::Multiply(left, right) | ASTNode::Or(left, right)=> {
+                            queue.push(*left);
+                            queue.push(*right);
+                            modified = true;
                         }
+                        _ => {}
                     }
                 }
             }
-            queue = new_queue;
+            if !modified {
+                match currentnode {
+                    ASTNode::Add(left, right) | ASTNode::Multiply(left, right) | ASTNode::Or(left, right)=> {
+                        queue.push(*left);
+                        queue.push(*right);
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }
